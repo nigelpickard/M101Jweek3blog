@@ -1,9 +1,14 @@
 package course;
 
+import com.mongodb.BasicDBObject;
+import com.mongodb.WriteResult;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class BlogPostDAO {
@@ -18,8 +23,16 @@ public class BlogPostDAO {
 
         // XXX HW 3.2,  Work Here
         Document post = null;
-
-
+        Document query = new Document();
+        query.put("permalink", permalink);
+        List<Document> posts = postsCollection.find(query).into(new ArrayList<Document>());
+        if (posts!=null && posts.size()>0){
+            int idx = 0;
+            while(post==null){
+                post = posts.get(idx);
+                idx++;
+            }
+        }
 
         return post;
     }
@@ -31,7 +44,8 @@ public class BlogPostDAO {
         // XXX HW 3.2,  Work Here
         // Return a list of DBObjects, each one a post from the posts collection
         List<Document> posts = null;
-
+        Document sortFilter = new Document("date",-1);
+        posts = postsCollection.find().sort(sortFilter).into(new ArrayList<Document>());
         return posts;
     }
 
@@ -57,7 +71,16 @@ public class BlogPostDAO {
 
         // Build the post object and insert it
         Document post = new Document();
-
+        post.put("title", title);
+        post.put("author", username);
+        post.put("body", body);
+        post.put("permalink", permalink);
+        post.put("tags", tags);
+        //comments
+        List<Document> comments = new ArrayList<Document>();
+        post.put("comments", comments);
+        post.put("date", new Date());
+        postsCollection.insertOne(post);
 
         return permalink;
     }
@@ -83,5 +106,20 @@ public class BlogPostDAO {
         // - email is optional and may come in NULL. Check for that.
         // - best solution uses an update command to the database and a suitable
         //   operator to append the comment on to any existing list of comments
+
+        //first get the post
+        Bson post = this.findByPermalink(permalink);
+        if (post!=null){
+            //now add a comment
+            Document comment = new Document();
+
+            comment.put("author", name);
+            if (email!=null) {
+                comment.put("email", email.trim());
+            }
+            comment.put("body", body);
+            postsCollection.updateOne(post, new Document("$push", new Document("comments",comment)));
+        }
+
     }
 }
